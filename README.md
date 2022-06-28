@@ -8,7 +8,9 @@ Also, managers can only interact with connectors using this contract, they would
 
 ### Methodology:
 - Store manager and connector info in a nested mapping.
+```solidity
 mapping(uint64 => mapping(address => string[])) DSAmanagerConnectors
+```
 
 - Adding a manager for a list of connectors (will be called by DSA) 
     - check if DSA Id exist (using `accountID` from `InstaList`)
