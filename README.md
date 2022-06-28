@@ -10,9 +10,10 @@ Also, managers can only interact with connectors using this contract, they would
 - Store manager and connector info in a nested mapping.
 ```solidity
 mapping(uint64 => mapping(address => string[])) DSAmanagerConnectors;
+mapping(uint64 => address[]) DSAmanagers;
 ```
 
-- Adding a manager for a list of connectors (will be called by DSA) 
+- Adding manager for a list of connectors (will be called by DSA) 
     - check if DSA Id exist (using `accountID` from `InstaList`)
     - check if any duplicate connector name already present in: 
     ```solidity 
@@ -32,4 +33,6 @@ mapping(uint64 => mapping(address => string[])) DSAmanagerConnectors;
     - check length of `DSAmanagerConnectors[DSA ID][msg.sender]`
     - check if connector name mentioned in input is present in DSAmanagerConnectors[DSA ID][msg.sender]
     - get `cast()` function from `InstaImplementationM1`, and call it internally.
+
+- Getter functions for `DSAmanagerConnectors` and `DSAmanagers`
 
