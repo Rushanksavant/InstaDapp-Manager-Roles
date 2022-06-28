@@ -6,6 +6,7 @@
 To create a smart contract that could assign Manager Roles in DSA. A manager can only be assigned by DSA, and managers could have access to one or more connectors.
 Also, managers can only interact with connectors using this contract, they wouldn't have access to DSA. 
 
+### Methodology:
 - Store manager and connector info in a nested mapping.
 mapping(uint64 => mapping(address => string[])) DSAmanagerConnectors
 
@@ -23,4 +24,3 @@ mapping(uint64 => mapping(address => string[])) DSAmanagerConnectors
     - check if connector name mentioned in input is present in DSAmanagerConnectors[DSA ID][manager address]
     -
     -
-    
