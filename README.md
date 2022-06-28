@@ -10,17 +10,17 @@ Also, managers can only interact with connectors using this contract, they would
 - Store manager and connector info in a nested mapping.
 mapping(uint64 => mapping(address => string[])) DSAmanagerConnectors
 
-- Adding a manager for a list of connectors
+- Adding a manager for a list of connectors (will be called by DSA)
     - check if DSA Id exist
-    - check if ant duplicate connector name already present
-    - add unique connector names to DSAmanagerConnectors
+    - check if any duplicate connector name already present in DSAmanagerConnectors[DSA ID][manager address]
+    - add unique connector names to DSAmanagerConnectors[DSA ID][manager address]
 
-- Removing a manager
+- Removing a manager (will be called by DSA)
     - check length of DSAmanagerConnectors[DSA ID][manager address]
     - delete DSAmanagerConnectors[DSA ID][manager address]
 
 - Interacting with connectors (will be called by managers)
-    - check length of DSAmanagerConnectors[DSA ID][manager address]
-    - check if connector name mentioned in input is present in DSAmanagerConnectors[DSA ID][manager address]
+    - check length of DSAmanagerConnectors[DSA ID][msg.sender]
+    - check if connector name mentioned in input is present in DSAmanagerConnectors[DSA ID][msg.sender]
     -
     -
