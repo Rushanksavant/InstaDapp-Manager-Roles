@@ -14,8 +14,10 @@ mapping(uint64 => mapping(address => string[])) DSAmanagerConnectors
 
 - Adding a manager for a list of connectors (will be called by DSA) 
     - check if DSA Id exist (using `accountID` from `InstaList`)
-    - check if any duplicate connector name already present in DSAmanagerConnectors[DSA ID][manager address]
-    - add unique connector names to DSAmanagerConnectors[DSA ID][manager address]
+    - check if any duplicate connector name already present in: ```solidity 
+    DSAmanagerConnectors[DSA ID][manager address]
+    ```
+    - add unique connector names to: ```solidity DSAmanagerConnectors[DSA ID][manager address] ```
 
 - Removing a manager (will be called by DSA) | input-> manager address
     - check length of DSAmanagerConnectors[DSA ID][manager address]
