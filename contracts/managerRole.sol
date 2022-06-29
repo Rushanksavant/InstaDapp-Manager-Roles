@@ -24,6 +24,7 @@ contract managerRole {
         );
     }
 
+    // DSA => manager address => ConnectorsInfo(connectors counter, connectors array, connectors mapping)
     mapping(address => mapping(address => ConnectorsInfo))
         public dsaManagerConnectors;
     struct ConnectorsInfo {
@@ -32,13 +33,16 @@ contract managerRole {
         mapping(string => bool) connectorsEnabled;
     }
 
+    // DSA => manager address
     mapping(address => address[]) dsaManagers;
 
+    // to check if DSA exist
     modifier dsaExists(address _dsa) {
         require(instaList.accountID(_dsa) > uint64(0));
         _;
     }
 
+    // to check if given address exist as manager for given DSA
     modifier ifManagerExist(address _dsa, address _manager) {
         bool flag;
         address[] memory allManagers = dsaManagers[_dsa];
@@ -52,6 +56,7 @@ contract managerRole {
         _;
     }
 
+    // to check if any connector already enabled for given manager in DSA
     modifier uniqueTargets(address _manager, string[] memory _targets) {
         for (uint256 i; i < _targets.length; i++) {
             require(
@@ -64,12 +69,16 @@ contract managerRole {
         _;
     }
 
+    /**
+     * @dev add a new manager for caller(DSA) along with allowed connectors
+     * @param _manager address to be added as manager
+     * @param _targets array of connector names to be enabled for new manager
+     */
     function addManagerWithConnectors(
         address _manager,
         string[] memory _targets
     ) public dsaExists(msg.sender) {
         address[] memory myManagers = dsaManagers[msg.sender];
-
         for (uint256 j; j < myManagers.length; j++) {
             if (myManagers[j] == _manager) {
                 revert("Address already manager");
@@ -91,6 +100,11 @@ contract managerRole {
         }
     }
 
+    /**
+     * @dev to add connectors to an existing manager of DSA
+     * @param _manager address of manager
+     * @param _targets array connectors to be enabled
+     */
     function addConnectors(address _manager, string[] memory _targets)
         public
         ifManagerExist(msg.sender, _manager)
@@ -109,6 +123,10 @@ contract managerRole {
         }
     }
 
+    /**
+     * @dev remove an address from manager role for given DSA
+     * @param _manager address to be removed from manager role
+     */
     function removeManager(address _manager)
         public
         ifManagerExist(msg.sender, _manager)
@@ -127,6 +145,11 @@ contract managerRole {
         }
     }
 
+    /**
+     * @dev remove existing connectors for a manager of DSA
+     * @param _manager address of manager for which connectors need to be disabled
+     * @param _targets connector names to be disabled
+     */
     function removeConnectors(address _manager, string[] memory _targets)
         public
         ifManagerExist(msg.sender, _manager)
@@ -145,6 +168,12 @@ contract managerRole {
         }
     }
 
+    /**
+     * @dev function for managers to cast spells
+     * @param _dsa address of DSA for which caller is manager
+     * @param _targetNames connector names to cast spells for
+     * @param _datas array of calldata
+     */
     function cast(
         address _dsa,
         string[] calldata _targetNames,
