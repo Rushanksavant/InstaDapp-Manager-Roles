@@ -17,13 +17,6 @@ contract managerRole {
     ListInterface public immutable instaList;
     ImplementationM1Interface public immutable instaImplementationM1;
 
-    // DSA => (manager address => array of connector names)
-    mapping(address => mapping(address => string[])) DSAmanagerConnectors;
-    // DSA => array of manager addresses
-    mapping(address => address[]) DSAmanagers;
-
-    mapping(address => mapping(string => bool)) managerConnectors;
-
     constructor(address _instaList, address _instaImplementationM1) {
         instaList = ListInterface(_instaList);
         instaImplementationM1 = ImplementationM1Interface(
@@ -31,79 +24,142 @@ contract managerRole {
         );
     }
 
-    function getDSA_ID(address _dsa) public returns (uint64) {
-        return instaList.accountID(_dsa);
+    mapping(address => mapping(address => ConnectorsInfo))
+        public dsaManagerConnectors;
+    struct ConnectorsInfo {
+        uint256 connectorCount;
+        string[] allAddedConnectors;
+        mapping(string => bool) connectorsEnabled;
     }
 
-    modifier ifManagerExist(address _manager) {
-        address[] memory myManagers = DSAmanagers[msg.sender];
+    mapping(address => address[]) dsaManagers;
 
-        for (uint256 i; i < myManagers.length; i++) {
-            if (myManagers[i] == _manager) {
+    modifier dsaExists(address _dsa) {
+        require(instaList.accountID(_dsa) > uint64(0));
+        _;
+    }
+
+    modifier ifManagerExist(address _dsa, address _manager) {
+        bool flag;
+        address[] memory allManagers = dsaManagers[_dsa];
+        for (uint256 j; j < allManagers.length; j++) {
+            if (allManagers[j] == _manager) {
+                flag = true;
+                break;
+            }
+        }
+        require(flag, "Manager does not exist");
+        _;
+    }
+
+    modifier uniqueTargets(address _manager, string[] memory _targets) {
+        for (uint256 i; i < _targets.length; i++) {
+            require(
+                !dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
+                    _targets[i]
+                ],
+                "Target already exist"
+            );
+        }
+        _;
+    }
+
+    function addManagerWithConnectors(
+        address _manager,
+        string[] memory _targets
+    ) public dsaExists(msg.sender) {
+        address[] memory myManagers = dsaManagers[msg.sender];
+
+        for (uint256 j; j < myManagers.length; j++) {
+            if (myManagers[j] == _manager) {
                 revert("Address already manager");
             }
         }
 
-        _;
-    }
-
-    modifier ifConnectorExist(address _manager, string[] memory _targets) {
-        string[] memory managerConnectors = DSAmanagerConnectors[msg.sender][
-            _manager
-        ];
+        dsaManagers[msg.sender].push(_manager);
 
         for (uint256 i; i < _targets.length; i++) {
-            string memory target = _targets[i];
-            for (uint256 j; j < managerConnectors.length; j++) {
-                if (
-                    keccak256(abi.encodePacked((managerConnectors[j]))) ==
-                    keccak256(abi.encodePacked((target)))
-                ) {
-                    revert("Target already exist");
-                }
-            }
-        }
+            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
+                    _targets[i]
+                ] = true;
 
-        _;
-    }
+            dsaManagerConnectors[msg.sender][_manager].allAddedConnectors.push(
+                _targets[i]
+            );
 
-    function addManager(address _manager, string[] memory _targets)
-        external
-        ifManagerExist(_manager)
-    {
-        DSAmanagers[msg.sender].push(_manager);
-
-        for (uint256 i; i < _targets.length; i++) {
-            DSAmanagerConnectors[msg.sender][_manager].push(_targets[i]);
+            dsaManagerConnectors[msg.sender][_manager].connectorCount++;
         }
     }
 
-    function removeManager(address _manager) external {}
-
-    function addConnector(address _manager, string[] memory _targets)
-        external
-        ifManagerExist(_manager)
+    function addConnectors(address _manager, string[] memory _targets)
+        public
+        ifManagerExist(msg.sender, _manager)
+        uniqueTargets(_manager, _targets)
     {
-        string[] memory managerConnectors = DSAmanagerConnectors[msg.sender][
-            _manager
-        ];
-        string[] memory uniqueConnectors;
-
         for (uint256 i; i < _targets.length; i++) {
-            string memory target = _targets[i];
-            for (uint256 j; j < managerConnectors.length; j++) {
-                if (
-                    keccak256(abi.encodePacked((managerConnectors[j]))) ==
-                    keccak256(abi.encodePacked((target)))
-                ) {
-                    break;
-                }
-                // uniqueConnectors.push(target);
+            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
+                    _targets[i]
+                ] = true;
+
+            dsaManagerConnectors[msg.sender][_manager].allAddedConnectors.push(
+                _targets[i]
+            );
+
+            dsaManagerConnectors[msg.sender][_manager].connectorCount++;
+        }
+    }
+
+    function removeManager(address _manager)
+        public
+        ifManagerExist(msg.sender, _manager)
+    {
+        delete dsaManagerConnectors[msg.sender][_manager];
+
+        address[] memory allManagers = dsaManagers[msg.sender];
+        for (uint256 j; j < allManagers.length; j++) {
+            if (allManagers[j] == _manager) {
+                dsaManagers[msg.sender][j] = dsaManagers[msg.sender][
+                    dsaManagers[msg.sender].length - 1
+                ];
+                dsaManagers[msg.sender].pop();
+                break;
             }
         }
     }
 
-    function removeConnector(address _manager, string[] memory _targets)
-        external
-    {}
+    function removeConnectors(address _manager, string[] memory _targets)
+        public
+        ifManagerExist(msg.sender, _manager)
+    {
+        for (uint256 i; i < _targets.length; i++) {
+            require(
+                dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
+                    _targets[i]
+                ],
+                "Target already disabled"
+            );
+            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
+                    _targets[i]
+                ] = false;
+            dsaManagerConnectors[msg.sender][_manager].connectorCount--;
+        }
+    }
+
+    function cast(
+        address _dsa,
+        string[] calldata _targetNames,
+        bytes[] calldata _datas,
+        address _origin
+    ) public payable dsaExists(_dsa) ifManagerExist(_dsa, msg.sender) {
+        for (uint256 i; i < _targetNames.length; i++) {
+            require(
+                dsaManagerConnectors[_dsa][msg.sender].connectorsEnabled[
+                    _targetNames[i]
+                ],
+                "Target not enabled"
+            );
+        }
+
+        instaImplementationM1.cast(_targetNames, _datas, _origin);
+    }
 }
