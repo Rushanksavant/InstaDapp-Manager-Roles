@@ -39,14 +39,16 @@ contract managerRole1 {
         _;
     }
 
-    modifier ifManagerExist(address _manager) {
-        address[] memory myManagers = dsaManagers[msg.sender];
-
-        for (uint256 i; i < myManagers.length; i++) {
-            if (myManagers[i] == _manager) {
-                revert("Address already manager");
+    modifier ifManagerExist(address _dsa, address _manager) {
+        bool flag;
+        address[] memory allManagers = dsaManagers[_dsa];
+        for (uint256 j; j < allManagers.length; j++) {
+            if (allManagers[j] == _manager) {
+                flag = true;
+                break;
             }
         }
+        require(flag, "Manager does not exist");
         _;
     }
 
@@ -65,7 +67,15 @@ contract managerRole1 {
     function addManagerWithConnectors(
         address _manager,
         string[] memory _targets
-    ) public dsaExists(msg.sender) ifManagerExist(_manager) {
+    ) public dsaExists(msg.sender) {
+        address[] memory myManagers = dsaManagers[msg.sender];
+
+        for (uint256 j; j < myManagers.length; j++) {
+            if (myManagers[j] == _manager) {
+                revert("Address already manager");
+            }
+        }
+
         dsaManagers[msg.sender].push(_manager);
 
         for (uint256 i; i < _targets.length; i++) {
@@ -83,36 +93,26 @@ contract managerRole1 {
 
     function addConnectors(address _manager, string[] memory _targets)
         public
-        dsaExists(msg.sender)
+        ifManagerExist(msg.sender, _manager)
         uniqueTargets(_manager, _targets)
     {
-        bool flag;
-        address[] memory allManagers = dsaManagers[msg.sender];
-        for (uint256 j; j < allManagers.length; j++) {
-            if (allManagers[j] == _manager) {
-                flag = true;
-                break;
-            }
-        }
+        for (uint256 i; i < _targets.length; i++) {
+            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
+                    _targets[i]
+                ] = true;
 
-        if (flag) {
-            for (uint256 i; i < _targets.length; i++) {
-                dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                        _targets[i]
-                    ] = true;
+            dsaManagerConnectors[msg.sender][_manager].allAddedConnectors.push(
+                _targets[i]
+            );
 
-                dsaManagerConnectors[msg.sender][_manager]
-                    .allAddedConnectors
-                    .push(_targets[i]);
-
-                dsaManagerConnectors[msg.sender][_manager].connectorCount++;
-            }
-        } else {
-            revert("Manager not added, use addManagerWithConnectors");
+            dsaManagerConnectors[msg.sender][_manager].connectorCount++;
         }
     }
 
-    function removeManager(address _manager) public {
+    function removeManager(address _manager)
+        public
+        ifManagerExist(msg.sender, _manager)
+    {
         delete dsaManagerConnectors[msg.sender][_manager];
 
         address[] memory allManagers = dsaManagers[msg.sender];
@@ -129,6 +129,7 @@ contract managerRole1 {
 
     function removeConnectors(address _manager, string[] memory _targets)
         public
+        ifManagerExist(msg.sender, _manager)
     {
         for (uint256 i; i < _targets.length; i++) {
             require(
@@ -142,5 +143,23 @@ contract managerRole1 {
                 ] = false;
             dsaManagerConnectors[msg.sender][_manager].connectorCount--;
         }
+    }
+
+    function cast(
+        address _dsa,
+        string[] calldata _targetNames,
+        bytes[] calldata _datas,
+        address _origin
+    ) public payable dsaExists(_dsa) ifManagerExist(_dsa, msg.sender) {
+        for (uint256 i; i < _targetNames.length; i++) {
+            require(
+                dsaManagerConnectors[_dsa][msg.sender].connectorsEnabled[
+                    _targetNames[i]
+                ],
+                "Target not enabled"
+            );
+        }
+
+        instaImplementationM1.cast(_targetNames, _datas, _origin);
     }
 }
