@@ -4,9 +4,11 @@ pragma solidity ^0.8.4;
 import "./helpers.sol";
 
 contract InstaManager is Helper {
-    constructor(address _instaList, address _instaImplementationM1)
-        Helper(_instaList, _instaImplementationM1)
-    {}
+    constructor(
+        address _instaList,
+        address _instaImplementationM1,
+        address _instaConnectorV2
+    ) Helper(_instaList, _instaImplementationM1, _instaConnectorV2) {}
 
     /**
      * @dev add a new manager for caller(DSA) along with allowed connectors
@@ -16,7 +18,7 @@ contract InstaManager is Helper {
     function addManagerWithConnectors(
         address _manager,
         string[] memory _targets
-    ) public dsaExists(msg.sender) {
+    ) public dsaExists(msg.sender) verifyConnectors(_targets) {
         address[] memory myManagers = dsaManagers[msg.sender];
         for (uint256 j; j < myManagers.length; j++) {
             if (myManagers[j] == _manager) {
@@ -35,7 +37,7 @@ contract InstaManager is Helper {
                 _targets[i]
             );
 
-            dsaManagerConnectors[msg.sender][_manager] = _targets.length;
+            dsaManagerConnectors[msg.sender][_manager].connectorCount++;
         }
     }
 
@@ -46,6 +48,7 @@ contract InstaManager is Helper {
      */
     function addConnectors(address _manager, string[] memory _targets)
         public
+        dsaExists(msg.sender)
         ifManagerExist(msg.sender, _manager)
         uniqueTargets(_manager, _targets)
     {
@@ -68,6 +71,7 @@ contract InstaManager is Helper {
      */
     function removeManager(address _manager)
         public
+        dsaExists(msg.sender)
         ifManagerExist(msg.sender, _manager)
     {
         delete dsaManagerConnectors[msg.sender][_manager];
@@ -92,6 +96,7 @@ contract InstaManager is Helper {
     function removeConnectors(address _manager, string[] memory _targets)
         public
         ifManagerExist(msg.sender, _manager)
+        verifyConnectors(_targets)
     {
         for (uint256 i; i < _targets.length; i++) {
             require(

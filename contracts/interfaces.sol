@@ -12,3 +12,10 @@ interface ImplementationM1Interface {
         address _origin
     ) external payable returns (bytes32);
 }
+
+interface InstaConnectorV2Interface {
+    function isConnectors(string[] calldata _connectorNames)
+        external
+        view
+        returns (bool isOk, address[] memory _connectors);
+}

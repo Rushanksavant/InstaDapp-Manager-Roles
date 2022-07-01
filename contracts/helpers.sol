@@ -6,12 +6,18 @@ import "./interfaces.sol";
 contract Helper {
     ListInterface public immutable instaList;
     ImplementationM1Interface public immutable instaImplementationM1;
+    InstaConnectorV2Interface public immutable instaConnectorV2;
 
-    constructor(address _instaList, address _instaImplementationM1) {
+    constructor(
+        address _instaList,
+        address _instaImplementationM1,
+        address _instaConnectorV2
+    ) {
         instaList = ListInterface(_instaList);
         instaImplementationM1 = ImplementationM1Interface(
             _instaImplementationM1
         );
+        instaConnectorV2 = InstaConnectorV2Interface(_instaConnectorV2);
     }
 
     // DSA => manager address => ConnectorsInfo(connectors counter, connectors array, connectors mapping)
@@ -28,7 +34,7 @@ contract Helper {
 
     // to check if DSA exist
     modifier dsaExists(address _dsa) {
-        require(instaList.accountID(_dsa) != 0, "zero-caller: not-a-dsa"));
+        require(instaList.accountID(_dsa) != 0, "zero-caller: not-a-dsa");
         _;
     }
 
@@ -56,6 +62,13 @@ contract Helper {
                 "Target already exist"
             );
         }
+        _;
+    }
+
+    // to check if connector names are valid
+    modifier verifyConnectors(string[] memory _targets) {
+        (bool isOk, ) = instaConnectorV2.isConnectors(_targets);
+        require(isOk, "One or more connector name(s) invalid");
         _;
     }
 }
