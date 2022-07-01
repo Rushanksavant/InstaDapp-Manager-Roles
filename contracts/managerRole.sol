@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import "./helpers.sol";
 
-contract managerRole is Helper {
+contract InstaManager is Helper {
     constructor(address _instaList, address _instaImplementationM1)
         Helper(_instaList, _instaImplementationM1)
     {}
