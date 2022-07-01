@@ -35,7 +35,7 @@ contract InstaManager is Helper {
                 _targets[i]
             );
 
-            dsaManagerConnectors[msg.sender][_manager].connectorCount++;
+            dsaManagerConnectors[msg.sender][_manager] = _targets.length;
         }
     }
 
