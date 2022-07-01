@@ -28,7 +28,7 @@ contract Helper {
 
     // to check if DSA exist
     modifier dsaExists(address _dsa) {
-        require(instaList.accountID(_dsa) > uint64(0));
+        require(instaList.accountID(_dsa) != 0, "zero-caller: not-a-dsa"));
         _;
     }
 
