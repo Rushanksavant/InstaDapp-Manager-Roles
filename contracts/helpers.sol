@@ -25,7 +25,6 @@ contract Helper {
         public dsaManagerConnectors;
     struct ConnectorsInfo {
         uint256 connectorCount;
-        string[] allAddedConnectors;
         mapping(string => bool) connectorsEnabled;
     }
 

@@ -33,10 +33,6 @@ contract InstaManager is Helper {
                     _targets[i]
                 ] = true;
 
-            dsaManagerConnectors[msg.sender][_manager].allAddedConnectors.push(
-                _targets[i]
-            );
-
             dsaManagerConnectors[msg.sender][_manager].connectorCount++;
         }
     }
@@ -56,10 +52,6 @@ contract InstaManager is Helper {
             dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
                     _targets[i]
                 ] = true;
-
-            dsaManagerConnectors[msg.sender][_manager].allAddedConnectors.push(
-                _targets[i]
-            );
 
             dsaManagerConnectors[msg.sender][_manager].connectorCount++;
         }
