@@ -2,11 +2,14 @@
 pragma solidity ^0.8.4;
 
 import "./interfaces.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract Helper {
     ListInterface public immutable instaList;
     ImplementationM1Interface public immutable instaImplementationM1;
     InstaConnectorV2Interface public immutable instaConnectorV2;
+
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     constructor(
         address _instaList,
@@ -29,7 +32,7 @@ contract Helper {
     }
 
     // DSA => manager address
-    mapping(address => address[]) public dsaManagers;
+    mapping(address => EnumerableSet.AddressSet) internal dsaManagers;
 
     // DSA => Connector => function sig[]
     mapping(address => mapping(string => bytes[]))
@@ -43,15 +46,8 @@ contract Helper {
 
     // to check if given address exist as manager for given DSA
     modifier ifManagerExist(address _dsa, address _manager) {
-        bool flag;
-        address[] memory allManagers = dsaManagers[_dsa];
-        for (uint256 j; j < allManagers.length; j++) {
-            if (allManagers[j] == _manager) {
-                flag = true;
-                break;
-            }
-        }
-        require(flag, "Manager does not exist");
+        bool check = dsaManagers[_dsa].contains(_manager);
+        require(check, "Manager does not exist");
         _;
     }
 
@@ -73,6 +69,19 @@ contract Helper {
         (bool isOk, ) = instaConnectorV2.isConnectors(_targets);
         require(isOk, "One or more connector name(s) invalid");
         _;
+    }
+
+    // get all managers for caller(DSA)
+    function getter() public view returns (address[] memory) {
+        address[] memory array = new address[](
+            dsaManagers[msg.sender].length()
+        );
+
+        for (uint256 i; i < dsaManagers[msg.sender].length(); i++) {
+            array[i] = dsaManagers[msg.sender].at(i);
+        }
+
+        return array;
     }
 
     // to check if function sigs are allowed

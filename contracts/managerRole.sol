@@ -4,6 +4,8 @@ pragma solidity ^0.8.4;
 import "./helpers.sol";
 
 contract InstaManager is Helper {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     constructor(
         address _instaList,
         address _instaImplementationM1,
@@ -19,14 +21,10 @@ contract InstaManager is Helper {
         address _manager,
         string[] memory _targets
     ) public dsaExists(msg.sender) verifyConnectors(_targets) {
-        address[] memory myManagers = dsaManagers[msg.sender];
-        for (uint256 j; j < myManagers.length; j++) {
-            if (myManagers[j] == _manager) {
-                revert("Address already manager");
-            }
-        }
+        bool check = dsaManagers[msg.sender].contains(_manager);
+        require(!check, "Manager already exist");
 
-        dsaManagers[msg.sender].push(_manager);
+        dsaManagers[msg.sender].add(_manager);
 
         for (uint256 i; i < _targets.length; i++) {
             dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
@@ -68,16 +66,7 @@ contract InstaManager is Helper {
     {
         delete dsaManagerConnectors[msg.sender][_manager];
 
-        address[] memory allManagers = dsaManagers[msg.sender];
-        for (uint256 j; j < allManagers.length; j++) {
-            if (allManagers[j] == _manager) {
-                dsaManagers[msg.sender][j] = dsaManagers[msg.sender][
-                    dsaManagers[msg.sender].length - 1
-                ];
-                dsaManagers[msg.sender].pop();
-                break;
-            }
-        }
+        dsaManagers[msg.sender].remove(_manager);
     }
 
     /**
