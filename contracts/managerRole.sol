@@ -115,13 +115,10 @@ contract InstaManager is Helper {
         string[] calldata _targetNames,
         bytes[] calldata _datas,
         address _origin
-    )
-        public
-        payable
-        dsaExists(_dsa)
-        ifManagerExist(_dsa, msg.sender)
-    // checkFunctionSig(_dsa, _targetNames, _datas)
-    {
+    ) public payable dsaExists(_dsa) ifManagerExist(_dsa, msg.sender) {
+        bool check = checkFunctionSig(_dsa, _targetNames, _datas);
+        require(check, "Function signature denied");
+
         for (uint256 i; i < _targetNames.length; i++) {
             require(
                 dsaManagerConnectors[_dsa][msg.sender].connectorsEnabled[

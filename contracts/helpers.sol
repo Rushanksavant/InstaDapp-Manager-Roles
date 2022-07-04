@@ -80,7 +80,9 @@ contract Helper {
         address _dsa,
         string[] calldata _targetNames,
         bytes[] calldata _datas
-    ) internal view {
+    ) internal view returns (bool) {
+        bool flag;
+
         for (uint256 i; i < _datas.length; i++) {
             bytes[] memory functionsDenied = deniedConnectorFunction[_dsa][
                 _targetNames[i]
@@ -88,9 +90,16 @@ contract Helper {
 
             for (uint256 j; j < functionsDenied.length; j++) {
                 if (keccak256(functionsDenied[j]) == keccak256(_datas[j])) {
-                    revert("function signature is denied by DSA");
+                    flag = true;
+                    break;
                 }
             }
+
+            if (flag) {
+                break;
+            }
         }
+
+        return flag;
     }
 }
