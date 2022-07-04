@@ -48,6 +48,12 @@ contract InstaManager is Helper {
         uniqueTargets(_manager, _targets)
     {
         for (uint256 i; i < _targets.length; i++) {
+            require(
+                !dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
+                    _targets[i]
+                ],
+                "Target already enabled"
+            );
             dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
                     _targets[i]
                 ] = true;
