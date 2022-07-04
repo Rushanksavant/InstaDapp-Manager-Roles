@@ -29,7 +29,11 @@ contract Helper {
     }
 
     // DSA => manager address
-    mapping(address => address[]) dsaManagers;
+    mapping(address => address[]) public dsaManagers;
+
+    // DSA => Connector => function sig[]
+    mapping(address => mapping(string => bytes[]))
+        public deniedConnectorFunction;
 
     // to check if DSA exist
     modifier dsaExists(address _dsa) {
@@ -69,5 +73,24 @@ contract Helper {
         (bool isOk, ) = instaConnectorV2.isConnectors(_targets);
         require(isOk, "One or more connector name(s) invalid");
         _;
+    }
+
+    // to check if function sigs are allowed
+    function checkFunctionSig(
+        address _dsa,
+        string[] calldata _targetNames,
+        bytes[] calldata _datas
+    ) internal view {
+        for (uint256 i; i < _datas.length; i++) {
+            bytes[] memory functionsDenied = deniedConnectorFunction[_dsa][
+                _targetNames[i]
+            ];
+
+            for (uint256 j; j < functionsDenied.length; j++) {
+                if (keccak256(functionsDenied[j]) == keccak256(_datas[j])) {
+                    revert("function signature is denied by DSA");
+                }
+            }
+        }
     }
 }
