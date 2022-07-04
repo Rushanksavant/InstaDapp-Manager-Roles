@@ -25,6 +25,7 @@ contract InstaManager is Helper {
         require(!check, "Manager already exist");
 
         dsaManagers[msg.sender].add(_manager);
+        managerDSAs[_manager].add(msg.sender);
 
         for (uint256 i; i < _targets.length; i++) {
             dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
@@ -67,6 +68,7 @@ contract InstaManager is Helper {
         delete dsaManagerConnectors[msg.sender][_manager];
 
         dsaManagers[msg.sender].remove(_manager);
+        managerDSAs[_manager].remove(msg.sender);
     }
 
     /**

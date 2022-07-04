@@ -31,8 +31,10 @@ contract Helper {
         mapping(string => bool) connectorsEnabled;
     }
 
-    // DSA => manager address
+    // DSA => manager addresses
     mapping(address => EnumerableSet.AddressSet) internal dsaManagers;
+    // manager address => DSAs
+    mapping(address => EnumerableSet.AddressSet) internal managerDSAs;
 
     // DSA => Connector => function sig[]
     mapping(address => mapping(string => bytes[]))
@@ -72,7 +74,20 @@ contract Helper {
     }
 
     // get all managers for caller(DSA)
-    function getter() public view returns (address[] memory) {
+    function getManagers() public view returns (address[] memory) {
+        address[] memory array = new address[](
+            managerDSAs[msg.sender].length()
+        );
+
+        for (uint256 i; i < managerDSAs[msg.sender].length(); i++) {
+            array[i] = managerDSAs[msg.sender].at(i);
+        }
+
+        return array;
+    }
+
+    // get all DSAs for caller(manager address)
+    function getDSAs() public view returns (address[] memory) {
         address[] memory array = new address[](
             dsaManagers[msg.sender].length()
         );
