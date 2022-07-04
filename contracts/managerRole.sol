@@ -160,8 +160,32 @@ contract InstaManager is Helper {
         }
     }
 
+    /**
+     * @dev Remove function signatures to be denied
+     * @param _targetNames connector names for which the function signatures are denied, and need to be allowed
+     * @param _datas function signatures
+     */
     function removeDeniedFunctions(
         string[] calldata _targetNames,
         bytes[] calldata _datas
-    ) public {}
+    ) public {
+        for (uint256 i; i < _targetNames.length; i++) {
+            bytes[] memory functionsDenied = deniedConnectorFunction[
+                msg.sender
+            ][_targetNames[i]];
+
+            for (uint256 j; j < functionsDenied.length; j++) {
+                if (keccak256(functionsDenied[j]) == keccak256(_datas[i])) {
+                    deniedConnectorFunction[msg.sender][_targetNames[i]][
+                        j
+                    ] = deniedConnectorFunction[msg.sender][_targetNames[i]][
+                        functionsDenied.length - 1
+                    ];
+
+                    deniedConnectorFunction[msg.sender][_targetNames[i]].pop();
+                    break;
+                }
+            }
+        }
+    }
 }
