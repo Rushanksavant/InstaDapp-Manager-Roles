@@ -23,7 +23,7 @@ contract Helper {
         instaConnectorV2 = InstaConnectorV2Interface(_instaConnectorV2);
     }
 
-    // DSA => manager address => ConnectorsInfo(connectors counter, connectors array, connectors mapping)
+    // DSA => manager address => ConnectorsInfo(connectors counter, connectors mapping)
     mapping(address => mapping(address => ConnectorsInfo))
         public dsaManagerConnectors;
     struct ConnectorsInfo {
