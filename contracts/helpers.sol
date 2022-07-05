@@ -32,9 +32,8 @@ contract Helper {
     // manager address => DSAs
     mapping(address => EnumerableSet.AddressSet) internal managerDSAs;
 
-    // DSA => Connector => function sig[]
-    mapping(address => mapping(string => bytes[]))
-        public deniedConnectorFunction;
+    // DSA => Connector => function signatures
+    mapping(address => mapping(string => EnumerableSet.Bytes32Set)) deniedConnectorFunction;
 
     // to check if DSA exist
     modifier dsaExists(address _dsa) {
@@ -80,6 +79,17 @@ contract Helper {
         }
         assembly {
             result := mload(add(source, 32))
+        }
+    }
+
+    // convert bytes(_datas) to bytes32
+    function bytesEncode32(bytes memory _data)
+        internal
+        pure
+        returns (bytes32 result)
+    {
+        assembly {
+            result := mload(add(_data, 32))
         }
     }
 
@@ -140,23 +150,32 @@ contract Helper {
     ) internal view returns (bool) {
         bool flag;
 
-        for (uint256 i; i < _datas.length; i++) {
-            bytes[] memory functionsDenied = deniedConnectorFunction[_dsa][
-                _targetNames[i]
-            ];
-
-            for (uint256 j; j < functionsDenied.length; j++) {
-                if (keccak256(functionsDenied[j]) == keccak256(_datas[j])) {
-                    flag = true;
-                    break;
-                }
-            }
-
-            if (flag) {
+        for (uint256 i; i < _targetNames.length; i++) {
+            if (
+                deniedConnectorFunction[_dsa][_targetNames[i]].contains(
+                    bytesEncode32(_datas[i])
+                )
+            ) {
+                flag = true;
                 break;
             }
         }
-
         return flag;
+    }
+
+    // to get all denied function signatures by a DSA (for specific connector)
+    function getDeniedFunctions(address _dsa, string memory _targetName)
+        public
+        view
+        returns (bytes32[] memory)
+    {
+        uint256 len = deniedConnectorFunction[_dsa][_targetName].length();
+
+        bytes32[] memory arr = new bytes32[](len);
+        for (uint256 i; i < len; i++) {
+            arr[i] = deniedConnectorFunction[_dsa][_targetName].at(i);
+        }
+
+        return arr;
     }
 }

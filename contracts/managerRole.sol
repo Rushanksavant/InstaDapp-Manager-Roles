@@ -107,7 +107,7 @@ contract InstaManager is Helper {
         address _origin
     ) public payable dsaExists(_dsa) ifManagerExist(_dsa, msg.sender) {
         bool check = checkFunctionSig(_dsa, _targetNames, _datas);
-        require(check, "Function signature denied");
+        require(!check, "Function signature denied");
 
         for (uint256 i; i < _targetNames.length; i++) {
             require(
@@ -126,27 +126,22 @@ contract InstaManager is Helper {
      * @param _targetNames connector names for which the function signatures are to be denied
      * @param _datas function signatures
      */
-    function denyFunctions(
-        string[] calldata _targetNames,
-        bytes[] calldata _datas
-    ) public {
+    function denyFunctions(string[] memory _targetNames, bytes[] memory _datas)
+        public
+    {
         for (uint256 i; i < _targetNames.length; i++) {
-            bytes[] memory functionsDenied = deniedConnectorFunction[
-                msg.sender
-            ][_targetNames[i]];
-            bool flag;
+            require(
+                !deniedConnectorFunction[msg.sender][_targetNames[i]].contains(
+                    bytesEncode32(_datas[i])
+                ),
+                "One of the function sig already restricted, hence cannot restrict again."
+            );
+        }
 
-            for (uint256 j; j < functionsDenied.length; j++) {
-                if (keccak256(functionsDenied[j]) == keccak256(_datas[i])) {
-                    flag = true;
-                    break;
-                }
-            }
-            if (flag) {
-                deniedConnectorFunction[msg.sender][_targetNames[i]].push(
-                    _datas[i]
-                );
-            }
+        for (uint256 j; j < _targetNames.length; j++) {
+            deniedConnectorFunction[msg.sender][_targetNames[j]].add(
+                bytesEncode32(_datas[j])
+            );
         }
     }
 
@@ -156,26 +151,22 @@ contract InstaManager is Helper {
      * @param _datas function signatures
      */
     function removeDeniedFunctions(
-        string[] calldata _targetNames,
-        bytes[] calldata _datas
+        string[] memory _targetNames,
+        bytes[] memory _datas
     ) public {
         for (uint256 i; i < _targetNames.length; i++) {
-            bytes[] memory functionsDenied = deniedConnectorFunction[
-                msg.sender
-            ][_targetNames[i]];
+            require(
+                deniedConnectorFunction[msg.sender][_targetNames[i]].contains(
+                    bytesEncode32(_datas[i])
+                ),
+                "One of the function sig not restricted yet, hence cannot remove restriction."
+            );
+        }
 
-            for (uint256 j; j < functionsDenied.length; j++) {
-                if (keccak256(functionsDenied[j]) == keccak256(_datas[i])) {
-                    deniedConnectorFunction[msg.sender][_targetNames[i]][
-                        j
-                    ] = deniedConnectorFunction[msg.sender][_targetNames[i]][
-                        functionsDenied.length - 1
-                    ];
-
-                    deniedConnectorFunction[msg.sender][_targetNames[i]].pop();
-                    break;
-                }
-            }
+        for (uint256 j; j < _targetNames.length; j++) {
+            deniedConnectorFunction[msg.sender][_targetNames[j]].remove(
+                bytesEncode32(_datas[j])
+            );
         }
     }
 }
