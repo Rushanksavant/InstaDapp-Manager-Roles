@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "./helpers.sol";
 
 contract InstaManager is Helper {
+    using EnumerableSet for EnumerableSet.Bytes32Set;
     using EnumerableSet for EnumerableSet.AddressSet;
 
     constructor(
@@ -21,18 +22,18 @@ contract InstaManager is Helper {
         address _manager,
         string[] memory _targets
     ) public dsaExists(msg.sender) verifyConnectors(_targets) {
-        bool check = dsaManagers[msg.sender].contains(_manager);
-        require(!check, "Manager already exist");
+        require(
+            !dsaManagers[msg.sender].contains(_manager),
+            "Manager already exist"
+        );
 
         dsaManagers[msg.sender].add(_manager);
         managerDSAs[_manager].add(msg.sender);
 
         for (uint256 i; i < _targets.length; i++) {
-            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ] = true;
-
-            dsaManagerConnectors[msg.sender][_manager].connectorCount++;
+            dsaManagerConnectors[msg.sender][_manager].add(
+                stringToBytes32(_targets[i])
+            );
         }
     }
 
@@ -48,17 +49,9 @@ contract InstaManager is Helper {
         uniqueTargets(_manager, _targets)
     {
         for (uint256 i; i < _targets.length; i++) {
-            require(
-                !dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ],
-                "Target already enabled"
+            dsaManagerConnectors[msg.sender][_manager].add(
+                stringToBytes32(_targets[i])
             );
-            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ] = true;
-
-            dsaManagerConnectors[msg.sender][_manager].connectorCount++;
         }
     }
 
@@ -89,15 +82,15 @@ contract InstaManager is Helper {
     {
         for (uint256 i; i < _targets.length; i++) {
             require(
-                dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ],
-                "Target already disabled"
+                dsaManagerConnectors[msg.sender][_manager].contains(
+                    stringToBytes32(_targets[i])
+                ),
+                "Target name does not exist"
             );
-            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ] = false;
-            dsaManagerConnectors[msg.sender][_manager].connectorCount--;
+
+            dsaManagerConnectors[msg.sender][_manager].remove(
+                stringToBytes32(_targets[i])
+            );
         }
     }
 
@@ -118,9 +111,9 @@ contract InstaManager is Helper {
 
         for (uint256 i; i < _targetNames.length; i++) {
             require(
-                dsaManagerConnectors[_dsa][msg.sender].connectorsEnabled[
-                    _targetNames[i]
-                ],
+                dsaManagerConnectors[_dsa][msg.sender].contains(
+                    stringToBytes32(_targetNames[i])
+                ),
                 "Target not enabled"
             );
         }
