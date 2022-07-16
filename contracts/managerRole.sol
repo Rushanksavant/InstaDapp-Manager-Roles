@@ -4,6 +4,9 @@ pragma solidity ^0.8.4;
 import "./helpers.sol";
 
 contract InstaManager is Helper {
+    using EnumerableSet for EnumerableSet.Bytes32Set;
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     constructor(
         address _instaList,
         address _instaImplementationM1,
@@ -19,21 +22,18 @@ contract InstaManager is Helper {
         address _manager,
         string[] memory _targets
     ) public dsaExists(msg.sender) verifyConnectors(_targets) {
-        address[] memory myManagers = dsaManagers[msg.sender];
-        for (uint256 j; j < myManagers.length; j++) {
-            if (myManagers[j] == _manager) {
-                revert("Address already manager");
-            }
-        }
+        require(
+            !dsaManagers[msg.sender].contains(_manager),
+            "Manager already exist"
+        );
 
-        dsaManagers[msg.sender].push(_manager);
+        dsaManagers[msg.sender].add(_manager);
+        managerDSAs[_manager].add(msg.sender);
 
         for (uint256 i; i < _targets.length; i++) {
-            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ] = true;
-
-            dsaManagerConnectors[msg.sender][_manager].connectorCount++;
+            dsaManagerConnectors[msg.sender][_manager].add(
+                stringToBytes32(_targets[i])
+            );
         }
     }
 
@@ -49,11 +49,9 @@ contract InstaManager is Helper {
         uniqueTargets(_manager, _targets)
     {
         for (uint256 i; i < _targets.length; i++) {
-            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ] = true;
-
-            dsaManagerConnectors[msg.sender][_manager].connectorCount++;
+            dsaManagerConnectors[msg.sender][_manager].add(
+                stringToBytes32(_targets[i])
+            );
         }
     }
 
@@ -68,16 +66,8 @@ contract InstaManager is Helper {
     {
         delete dsaManagerConnectors[msg.sender][_manager];
 
-        address[] memory allManagers = dsaManagers[msg.sender];
-        for (uint256 j; j < allManagers.length; j++) {
-            if (allManagers[j] == _manager) {
-                dsaManagers[msg.sender][j] = dsaManagers[msg.sender][
-                    dsaManagers[msg.sender].length - 1
-                ];
-                dsaManagers[msg.sender].pop();
-                break;
-            }
-        }
+        dsaManagers[msg.sender].remove(_manager);
+        managerDSAs[_manager].remove(msg.sender);
     }
 
     /**
@@ -92,15 +82,15 @@ contract InstaManager is Helper {
     {
         for (uint256 i; i < _targets.length; i++) {
             require(
-                dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ],
-                "Target already disabled"
+                dsaManagerConnectors[msg.sender][_manager].contains(
+                    stringToBytes32(_targets[i])
+                ),
+                "Target name does not exist"
             );
-            dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ] = false;
-            dsaManagerConnectors[msg.sender][_manager].connectorCount--;
+
+            dsaManagerConnectors[msg.sender][_manager].remove(
+                stringToBytes32(_targets[i])
+            );
         }
     }
 
@@ -116,15 +106,67 @@ contract InstaManager is Helper {
         bytes[] calldata _datas,
         address _origin
     ) public payable dsaExists(_dsa) ifManagerExist(_dsa, msg.sender) {
+        bool check = checkFunctionSig(_dsa, _targetNames, _datas);
+        require(!check, "Function signature denied");
+
         for (uint256 i; i < _targetNames.length; i++) {
             require(
-                dsaManagerConnectors[_dsa][msg.sender].connectorsEnabled[
-                    _targetNames[i]
-                ],
+                dsaManagerConnectors[_dsa][msg.sender].contains(
+                    stringToBytes32(_targetNames[i])
+                ),
                 "Target not enabled"
             );
         }
 
         instaImplementationM1.cast(_targetNames, _datas, _origin);
+    }
+
+    /**
+     * @dev Add function signatures to be denied
+     * @param _targetNames connector names for which the function signatures are to be denied
+     * @param _datas function signatures
+     */
+    function denyFunctions(string[] memory _targetNames, bytes[] memory _datas)
+        public
+    {
+        for (uint256 i; i < _targetNames.length; i++) {
+            require(
+                !deniedConnectorFunction[msg.sender][_targetNames[i]].contains(
+                    bytesEncode32(_datas[i])
+                ),
+                "One of the function sig already restricted, hence cannot restrict again."
+            );
+        }
+
+        for (uint256 j; j < _targetNames.length; j++) {
+            deniedConnectorFunction[msg.sender][_targetNames[j]].add(
+                bytesEncode32(_datas[j])
+            );
+        }
+    }
+
+    /**
+     * @dev Remove function signatures to be denied
+     * @param _targetNames connector names for which the function signatures are denied, and need to be allowed
+     * @param _datas function signatures
+     */
+    function removeDeniedFunctions(
+        string[] memory _targetNames,
+        bytes[] memory _datas
+    ) public {
+        for (uint256 i; i < _targetNames.length; i++) {
+            require(
+                deniedConnectorFunction[msg.sender][_targetNames[i]].contains(
+                    bytesEncode32(_datas[i])
+                ),
+                "One of the function sig not restricted yet, hence cannot remove restriction."
+            );
+        }
+
+        for (uint256 j; j < _targetNames.length; j++) {
+            deniedConnectorFunction[msg.sender][_targetNames[j]].remove(
+                bytesEncode32(_datas[j])
+            );
+        }
     }
 }

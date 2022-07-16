@@ -2,11 +2,15 @@
 pragma solidity ^0.8.4;
 
 import "./interfaces.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract Helper {
     ListInterface public immutable instaList;
     ImplementationM1Interface public immutable instaImplementationM1;
     InstaConnectorV2Interface public immutable instaConnectorV2;
+
+    using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSet for EnumerableSet.Bytes32Set;
 
     constructor(
         address _instaList,
@@ -20,16 +24,16 @@ contract Helper {
         instaConnectorV2 = InstaConnectorV2Interface(_instaConnectorV2);
     }
 
-    // DSA => manager address => ConnectorsInfo(connectors counter, connectors array, connectors mapping)
-    mapping(address => mapping(address => ConnectorsInfo))
-        public dsaManagerConnectors;
-    struct ConnectorsInfo {
-        uint256 connectorCount;
-        mapping(string => bool) connectorsEnabled;
-    }
+    // DSA => manager address => Connector names
+    mapping(address => mapping(address => EnumerableSet.Bytes32Set)) dsaManagerConnectors;
 
-    // DSA => manager address
-    mapping(address => address[]) dsaManagers;
+    // DSA => manager addresses
+    mapping(address => EnumerableSet.AddressSet) internal dsaManagers;
+    // manager address => DSAs
+    mapping(address => EnumerableSet.AddressSet) internal managerDSAs;
+
+    // DSA => Connector => function signatures
+    mapping(address => mapping(string => EnumerableSet.Bytes32Set)) deniedConnectorFunction;
 
     // to check if DSA exist
     modifier dsaExists(address _dsa) {
@@ -39,26 +43,18 @@ contract Helper {
 
     // to check if given address exist as manager for given DSA
     modifier ifManagerExist(address _dsa, address _manager) {
-        bool flag;
-        address[] memory allManagers = dsaManagers[_dsa];
-        for (uint256 j; j < allManagers.length; j++) {
-            if (allManagers[j] == _manager) {
-                flag = true;
-                break;
-            }
-        }
-        require(flag, "Manager does not exist");
+        require(dsaManagers[_dsa].contains(_manager), "Manager does not exist");
         _;
     }
 
-    // to check if any connector already enabled for given manager in DSA
+    // to check if any connector already added for given manager in DSA
     modifier uniqueTargets(address _manager, string[] memory _targets) {
         for (uint256 i; i < _targets.length; i++) {
             require(
-                !dsaManagerConnectors[msg.sender][_manager].connectorsEnabled[
-                    _targets[i]
-                ],
-                "Target already exist"
+                !dsaManagerConnectors[msg.sender][_manager].contains(
+                    stringToBytes32(_targets[i])
+                ),
+                "Target name already exist"
             );
         }
         _;
@@ -69,5 +65,117 @@ contract Helper {
         (bool isOk, ) = instaConnectorV2.isConnectors(_targets);
         require(isOk, "One or more connector name(s) invalid");
         _;
+    }
+
+    // convert string(connector names) to bytes32
+    function stringToBytes32(string memory source)
+        internal
+        pure
+        returns (bytes32 result)
+    {
+        bytes memory tempEmptyStringTest = bytes(source);
+        if (tempEmptyStringTest.length == 0) {
+            return 0x0;
+        }
+        assembly {
+            result := mload(add(source, 32))
+        }
+    }
+
+    // convert bytes(_datas) to bytes32
+    function bytesEncode32(bytes memory _data)
+        internal
+        pure
+        returns (bytes32 result)
+    {
+        assembly {
+            result := mload(add(_data, 32))
+        }
+    }
+
+    // get all managers for caller(DSA)
+    function getManagers() public view returns (address[] memory) {
+        address[] memory array = new address[](
+            managerDSAs[msg.sender].length()
+        );
+
+        for (uint256 i; i < managerDSAs[msg.sender].length(); i++) {
+            array[i] = managerDSAs[msg.sender].at(i);
+        }
+
+        return array;
+    }
+
+    // get all DSAs for caller(manager address)
+    function getDSAs() public view returns (address[] memory) {
+        address[] memory array = new address[](
+            dsaManagers[msg.sender].length()
+        );
+
+        for (uint256 i; i < dsaManagers[msg.sender].length(); i++) {
+            array[i] = dsaManagers[msg.sender].at(i);
+        }
+
+        return array;
+    }
+
+    // get all conectors for dsa=>manager
+    function getConnectors(address _dsa, address _manager)
+        public
+        view
+        returns (string[] memory)
+    {
+        string[] memory array = new string[](
+            dsaManagerConnectors[_dsa][_manager].length()
+        );
+
+        for (
+            uint256 i;
+            i < dsaManagerConnectors[_dsa][_manager].length();
+            i++
+        ) {
+            array[i] = string(
+                abi.encodePacked(dsaManagerConnectors[_dsa][_manager].at(i))
+            );
+        }
+
+        return array;
+    }
+
+    // to check if function sigs are allowed
+    function checkFunctionSig(
+        address _dsa,
+        string[] calldata _targetNames,
+        bytes[] calldata _datas
+    ) internal view returns (bool) {
+        bool flag;
+
+        for (uint256 i; i < _targetNames.length; i++) {
+            if (
+                deniedConnectorFunction[_dsa][_targetNames[i]].contains(
+                    bytesEncode32(_datas[i])
+                )
+            ) {
+                flag = true;
+                break;
+            }
+        }
+        return flag;
+    }
+
+    // to get all denied function signatures by a DSA (for specific connector)
+    function getDeniedFunctions(address _dsa, string memory _targetName)
+        public
+        view
+        returns (bytes32[] memory)
+    {
+        uint256 len = deniedConnectorFunction[_dsa][_targetName].length();
+
+        bytes32[] memory arr = new bytes32[](len);
+        for (uint256 i; i < len; i++) {
+            arr[i] = deniedConnectorFunction[_dsa][_targetName].at(i);
+        }
+
+        return arr;
     }
 }
